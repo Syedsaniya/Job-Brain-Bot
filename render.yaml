@@ -1,0 +1,26 @@
+services:
+  - type: worker
+    name: job-brain-bot
+    env: docker
+    plan: starter
+    autoDeploy: true
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SCHEDULER_ENABLED
+        value: "true"
+      - key: SCHEDULER_INTERVAL_HOURS
+        value: "6"
+      - key: AI_ANALYSIS_ENABLED
+        value: "true"
+      - key: NETWORKING_GENERATOR_ENABLED
+        value: "true"
+      - key: AI_PROVIDER
+        value: "pattern"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
