@@ -61,13 +61,33 @@ def build_bot_application(
     settings: Settings,
     session_factory: sessionmaker[Session],
     http_client_lifecycle: SharedHttpClientLifecycle,
+    scheduler_factory: Callable[[Application], object] | None = None,
 ) -> Application:
     logger = structlog.get_logger(__name__)
+    scheduler_holder: dict[str, object | None] = {"scheduler": None}
+
+    async def _post_init(app: Application) -> None:
+        await http_client_lifecycle.startup()
+        if scheduler_factory:
+            scheduler = scheduler_factory(app)
+            scheduler.start()
+            scheduler_holder["scheduler"] = scheduler
+            logger.info("scheduler_started")
+
+    async def _post_shutdown(_: Application) -> None:
+        scheduler = scheduler_holder.get("scheduler")
+        if scheduler:
+            try:
+                scheduler.shutdown(wait=False)
+            except Exception:
+                logger.exception("scheduler_shutdown_failed")
+        await http_client_lifecycle.shutdown()
+
     app = (
         Application.builder()
         .token(settings.telegram_bot_token)
-        .post_init(lambda _: http_client_lifecycle.startup())
-        .post_shutdown(lambda _: http_client_lifecycle.shutdown())
+        .post_init(_post_init)
+        .post_shutdown(_post_shutdown)
         .build()
     )
 

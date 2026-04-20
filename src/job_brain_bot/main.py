@@ -18,11 +18,17 @@ def run() -> None:
         logger.info("schema_bootstrap", mode="auto_create_tables_enabled")
     session_factory = build_session_factory(settings)
     http_client_lifecycle = SharedHttpClientLifecycle(settings)
-    app = build_bot_application(settings, session_factory, http_client_lifecycle)
-
+    scheduler_factory = None
     if settings.scheduler_enabled:
-        scheduler = configure_scheduler(app, settings, session_factory, http_client_lifecycle)
-        scheduler.start()
+        scheduler_factory = lambda app: configure_scheduler(  # noqa: E731
+            app, settings, session_factory, http_client_lifecycle
+        )
+    app = build_bot_application(
+        settings,
+        session_factory,
+        http_client_lifecycle,
+        scheduler_factory=scheduler_factory,
+    )
 
     app.run_polling(poll_interval=settings.bot_poll_interval_seconds)
 
