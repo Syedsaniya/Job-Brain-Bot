@@ -3,6 +3,7 @@ import structlog
 
 from job_brain_bot.networking.http_client import SharedHttpClientLifecycle
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.exc import OperationalError
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
@@ -528,9 +529,21 @@ def build_bot_application(
         await _safe_reply(update, formatted)
 
     async def _error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-        logger.exception("telegram_handler_error", error=str(context.error))
+        error_text = str(context.error or "")
+        logger.exception("telegram_handler_error", error=error_text)
         if isinstance(update, Update) and update.message:
             try:
+                lowered = error_text.lower()
+                if isinstance(context.error, OperationalError) or (
+                    "failed to resolve host" in lowered
+                    or "name or service not known" in lowered
+                    or "could not translate host name" in lowered
+                    or "connection refused" in lowered
+                ):
+                    await update.message.reply_text(
+                        "Database is temporarily unavailable. Please try again in a minute."
+                    )
+                    return
                 await update.message.reply_text(
                     "Something went wrong while processing your request. Please try again."
                 )
