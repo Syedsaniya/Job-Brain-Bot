@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     telegram_bot_token: str = Field(alias="TELEGRAM_BOT_TOKEN")
     database_url: str = Field(alias="DATABASE_URL")
     auto_create_tables: bool = Field(default=False, alias="AUTO_CREATE_TABLES")
+    apply_migrations_on_startup: bool = Field(default=True, alias="APPLY_MIGRATIONS_ON_STARTUP")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     bot_poll_interval_seconds: float = Field(
         default=1.0, ge=0.1, le=10.0, alias="BOT_POLL_INTERVAL_SECONDS"

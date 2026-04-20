@@ -1,5 +1,6 @@
 from collections.abc import Generator
 from contextlib import contextmanager
+from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -54,6 +55,29 @@ def build_session_factory(settings: Settings) -> sessionmaker[Session]:
 def create_tables(settings: Settings) -> None:
     engine = build_engine(settings)
     Base.metadata.create_all(bind=engine)
+
+
+def _split_sql_statements(sql: str) -> list[str]:
+    statements = [part.strip() for part in sql.split(";")]
+    return [statement for statement in statements if statement]
+
+
+def apply_sql_migrations(settings: Settings) -> list[str]:
+    engine = build_engine(settings)
+    migration_dir = Path(__file__).resolve().parent.parent / "migrations"
+    migration_files = sorted(migration_dir.glob("*.sql"))
+    applied_files: list[str] = []
+
+    if not migration_files:
+        return applied_files
+
+    with engine.begin() as conn:
+        for migration_file in migration_files:
+            sql_text = migration_file.read_text(encoding="utf-8")
+            for statement in _split_sql_statements(sql_text):
+                conn.exec_driver_sql(statement)
+            applied_files.append(migration_file.name)
+    return applied_files
 
 
 @contextmanager

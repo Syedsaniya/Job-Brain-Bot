@@ -1,7 +1,12 @@
 import structlog
 
 from job_brain_bot.config import get_settings
-from job_brain_bot.db.session import build_session_factory, create_tables, database_driver_prefix
+from job_brain_bot.db.session import (
+    apply_sql_migrations,
+    build_session_factory,
+    create_tables,
+    database_driver_prefix,
+)
 from job_brain_bot.logging_config import configure_logging
 from job_brain_bot.networking.http_client import SharedHttpClientLifecycle
 from job_brain_bot.scheduler.jobs import configure_scheduler
@@ -15,6 +20,9 @@ def run() -> None:
     logger.info(
         "startup_configuration", db_driver_prefix=database_driver_prefix(settings.database_url)
     )
+    if settings.apply_migrations_on_startup:
+        applied_migrations = apply_sql_migrations(settings)
+        logger.info("schema_bootstrap", mode="startup_migrations", files=applied_migrations)
     if settings.auto_create_tables:
         create_tables(settings)
         logger.info("schema_bootstrap", mode="auto_create_tables_enabled")

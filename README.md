@@ -77,6 +77,7 @@ copy .env.example .env
 4. Update `.env`:
 - `TELEGRAM_BOT_TOKEN`
 - `DATABASE_URL`
+- `APPLY_MIGRATIONS_ON_STARTUP=true` (default; safe and idempotent)
 
 5. Run DB migration SQL:
 
@@ -154,6 +155,7 @@ Output format includes:
 1. Create a new project and add PostgreSQL plugin.
 2. Deploy from repo using Dockerfile.
 3. Set env vars from `.env.example`.
+   - Set `APPLY_MIGRATIONS_ON_STARTUP=true`
    - Set `AUTO_CREATE_TABLES=false`
    - Set `ADMIN_USER_IDS=<your_telegram_user_id>`
 4. Ensure worker stays always-on.
