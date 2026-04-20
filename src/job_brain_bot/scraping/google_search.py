@@ -17,6 +17,7 @@ USER_AGENTS = [
 
 _QUERY_CACHE: dict[str, tuple[float, list[str]]] = {}
 _CACHE_TTL_SECONDS = 600.0
+_GOOGLE_BLOCKED_UNTIL = 0.0
 
 
 def build_search_queries(
@@ -56,17 +57,41 @@ def _pick_ua(settings: Settings) -> str:
 
 
 async def _fetch_google_html(query: str, settings: Settings, client: httpx.AsyncClient) -> str:
+    global _GOOGLE_BLOCKED_UNTIL
+
+    now = asyncio.get_running_loop().time()
+    if now < _GOOGLE_BLOCKED_UNTIL:
+        logger.warning(
+            "google_search_temporarily_paused",
+            cooldown_remaining_seconds=round(_GOOGLE_BLOCKED_UNTIL - now, 1),
+        )
+        return ""
+
     url = f"https://www.google.com/search?q={quote_plus(query)}&num={settings.max_jobs_per_query}"
     headers = {"User-Agent": _pick_ua(settings)}
     for attempt in range(1, 4):
         try:
             response = await client.get(url, headers=headers)
+            final_url = str(response.url)
+            if "/sorry/" in final_url or "/sorry/index" in final_url:
+                _GOOGLE_BLOCKED_UNTIL = (
+                    asyncio.get_running_loop().time() + settings.google_block_cooldown_seconds
+                )
+                logger.warning(
+                    "google_search_blocked_sorry_page",
+                    cooldown_seconds=settings.google_block_cooldown_seconds,
+                )
+                return ""
             response.raise_for_status()
             await asyncio.sleep(
                 random.uniform(settings.min_delay_seconds, settings.max_delay_seconds)
             )
             return response.text
         except httpx.HTTPStatusError as exc:
+            if exc.response is not None and exc.response.status_code == 429:
+                _GOOGLE_BLOCKED_UNTIL = (
+                    asyncio.get_running_loop().time() + settings.google_block_cooldown_seconds
+                )
             if exc.response is not None and exc.response.status_code not in {
                 429,
                 500,

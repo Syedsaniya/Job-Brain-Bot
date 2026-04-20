@@ -21,6 +21,13 @@ class Settings(BaseSettings):
 
     max_jobs_per_query: int = Field(default=20, ge=5, le=50, alias="MAX_JOBS_PER_QUERY")
     scraping_concurrency: int = Field(default=8, ge=1, le=20, alias="SCRAPING_CONCURRENCY")
+    max_roles_per_search: int = Field(default=3, ge=1, le=10, alias="MAX_ROLES_PER_SEARCH")
+    max_google_queries_per_role: int = Field(
+        default=4, ge=1, le=10, alias="MAX_GOOGLE_QUERIES_PER_ROLE"
+    )
+    google_block_cooldown_seconds: int = Field(
+        default=900, ge=60, le=3600, alias="GOOGLE_BLOCK_COOLDOWN_SECONDS"
+    )
     request_timeout_seconds: int = Field(default=20, ge=5, le=120, alias="REQUEST_TIMEOUT_SECONDS")
     min_delay_seconds: float = Field(default=1.0, ge=0.0, le=30.0, alias="MIN_DELAY_SECONDS")
     max_delay_seconds: float = Field(default=3.5, ge=0.1, le=60.0, alias="MAX_DELAY_SECONDS")

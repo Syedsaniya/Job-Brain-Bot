@@ -45,7 +45,7 @@ async def fetch_and_rank_jobs_for_user_async(
 
     time_range = normalize_time_range(time_range)
     skills = [s.strip() for s in user.skills.split(",") if s.strip()]
-    roles = _parse_roles(user.role)
+    roles = _parse_roles(user.role)[: settings.max_roles_per_search]
 
     scraped_jobs = []
     for role in roles:

@@ -59,6 +59,7 @@ async def collect_jobs_async(
     queries = build_search_queries(
         role=role, experience=experience, location=location, skills=skills, time_range=time_range
     )
+    queries = queries[: settings.max_google_queries_per_role]
     query_sem = asyncio.Semaphore(max(1, min(concurrency, 5)))
 
     async def _query(q: str) -> list[str]:

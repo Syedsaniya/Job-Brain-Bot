@@ -11,6 +11,7 @@ Production-ready Telegram bot for fresher and early-career job discovery with mu
 - Multi-source aggregation via Google queries + public job pages
 - Async scraping pipeline with `httpx` + concurrency controls
 - BeautifulSoup parsing with Playwright fallback for JS-heavy pages
+- Google anti-rate-limit guardrails (query caps + cooldown when blocked)
 - PostgreSQL persistence for users, jobs, alerts
 - 6-hour scheduler for ingestion, matching, and notification
 
@@ -78,6 +79,10 @@ copy .env.example .env
 - `TELEGRAM_BOT_TOKEN`
 - `DATABASE_URL`
 - `APPLY_MIGRATIONS_ON_STARTUP=true` (default; safe and idempotent)
+- Optional throttling controls:
+  - `MAX_ROLES_PER_SEARCH=3`
+  - `MAX_GOOGLE_QUERIES_PER_ROLE=4`
+  - `GOOGLE_BLOCK_COOLDOWN_SECONDS=900`
 
 5. Run DB migration SQL:
 
@@ -85,6 +90,7 @@ copy .env.example .env
 psql "$DATABASE_URL" -f src/job_brain_bot/migrations/001_init.sql
 psql "$DATABASE_URL" -f src/job_brain_bot/migrations/002_add_posted_date.sql
 psql "$DATABASE_URL" -f src/job_brain_bot/migrations/003_add_user_job_views.sql
+psql "$DATABASE_URL" -f src/job_brain_bot/migrations/004_expand_user_profile_fields.sql
 ```
 
 6. Start bot:
