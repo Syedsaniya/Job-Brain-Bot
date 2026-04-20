@@ -22,7 +22,7 @@ class User(Base):
     __tablename__ = "users"
 
     user_id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    role: Mapped[str] = mapped_column(String(200), default="")
+    role: Mapped[str] = mapped_column(Text, default="")
     experience: Mapped[str] = mapped_column(String(100), default="")
     location: Mapped[str] = mapped_column(String(200), default="")
     skills: Mapped[str] = mapped_column(Text, default="")
