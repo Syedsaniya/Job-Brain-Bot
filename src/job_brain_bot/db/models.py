@@ -24,6 +24,9 @@ class User(Base):
     )
 
     alerts: Mapped[list["Alert"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    job_views: Mapped[list["UserJobView"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Job(Base):
@@ -46,6 +49,9 @@ class Job(Base):
     )
 
     alerts: Mapped[list["Alert"]] = relationship(back_populates="job", cascade="all, delete-orphan")
+    user_views: Mapped[list["UserJobView"]] = relationship(
+        back_populates="job", cascade="all, delete-orphan"
+    )
 
 
 class Alert(Base):
@@ -57,3 +63,17 @@ class Alert(Base):
 
     user: Mapped[User] = relationship(back_populates="alerts")
     job: Mapped[Job] = relationship(back_populates="alerts")
+
+
+class UserJobView(Base):
+    __tablename__ = "user_job_views"
+    __table_args__ = (UniqueConstraint("user_id", "rank", name="uq_user_job_views_user_rank"),)
+
+    view_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id", ondelete="CASCADE"), index=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.job_id", ondelete="CASCADE"), index=True)
+    rank: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped[User] = relationship(back_populates="job_views")
+    job: Mapped[Job] = relationship(back_populates="user_views")

@@ -83,6 +83,7 @@ copy .env.example .env
 ```bash
 psql "$DATABASE_URL" -f src/job_brain_bot/migrations/001_init.sql
 psql "$DATABASE_URL" -f src/job_brain_bot/migrations/002_add_posted_date.sql
+psql "$DATABASE_URL" -f src/job_brain_bot/migrations/003_add_user_job_views.sql
 ```
 
 6. Start bot:
@@ -153,6 +154,8 @@ Output format includes:
 1. Create a new project and add PostgreSQL plugin.
 2. Deploy from repo using Dockerfile.
 3. Set env vars from `.env.example`.
+   - Set `AUTO_CREATE_TABLES=false`
+   - Set `ADMIN_USER_IDS=<your_telegram_user_id>`
 4. Ensure worker stays always-on.
 
 ## CI

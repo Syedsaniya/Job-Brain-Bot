@@ -47,7 +47,7 @@ async def fetch_and_rank_jobs_for_user_async(
     # Apply time-based filtering if time_range is specified
     if time_range in TIME_RANGES:
         cutoff = datetime.now(timezone.utc) - TIME_RANGES[time_range]
-        jobs = [job for job in jobs if job.posted_date is None or job.posted_date >= cutoff]
+        jobs = [job for job in jobs if job.posted_date is not None and job.posted_date >= cutoff]
 
     filtered = filter_jobs_for_profile(jobs, user.experience)
     ranked = rank_jobs_for_user(user, filtered)

@@ -48,7 +48,7 @@ def format_skill_gap(gap: GapAnalysis) -> str:
         gap.recommendation,
         "",
         f"*📊 Skill Coverage:* {gap.skill_coverage}%",
-        f"*⏱ Estimated Prep Time:* {gap.preparation_time}",
+        f"*⏱ Estimated Prep Time:* {gap.estimated_preparation_time}",
         "",
         f"*✅ You Have ({len(gap.matched_skills)}):*",
     ]

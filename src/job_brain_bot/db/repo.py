@@ -6,7 +6,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from job_brain_bot.db.models import Alert, Job, User
+from job_brain_bot.db.models import Alert, Job, User, UserJobView
 from job_brain_bot.types import JobRecord, UserProfile
 
 
@@ -58,6 +58,10 @@ def upsert_user(session: Session, profile: UserProfile) -> User:
 
 def get_user(session: Session, user_id: int) -> User | None:
     return session.get(User, user_id)
+
+
+def get_job(session: Session, job_id: int) -> Job | None:
+    return session.get(Job, job_id)
 
 
 def list_users_with_alerts(session: Session) -> list[User]:
@@ -122,3 +126,19 @@ def create_alert_if_missing(session: Session, user_id: int, job_id: int) -> bool
         return False
     session.add(Alert(user_id=user_id, job_id=job_id))
     return True
+
+
+def replace_user_job_views(session: Session, user_id: int, ranked_job_ids: list[int]) -> None:
+    session.query(UserJobView).filter(UserJobView.user_id == user_id).delete()
+    for idx, job_id in enumerate(ranked_job_ids, start=1):
+        session.add(UserJobView(user_id=user_id, job_id=job_id, rank=idx))
+
+
+def list_user_job_views(session: Session, user_id: int, limit: int = 20) -> list[UserJobView]:
+    stmt: Select[tuple[UserJobView]] = (
+        select(UserJobView)
+        .where(UserJobView.user_id == user_id)
+        .order_by(UserJobView.rank.asc())
+        .limit(limit)
+    )
+    return list(session.scalars(stmt))

@@ -14,6 +14,10 @@ services:
         value: "true"
       - key: SCHEDULER_INTERVAL_HOURS
         value: "6"
+      - key: AUTO_CREATE_TABLES
+        value: "false"
+      - key: ADMIN_USER_IDS
+        sync: false
       - key: AI_ANALYSIS_ENABLED
         value: "true"
       - key: NETWORKING_GENERATOR_ENABLED

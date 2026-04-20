@@ -19,7 +19,10 @@ COPY .env.example ./
 COPY requirements.txt ./
 
 RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi --without dev \
+    && (poetry install --no-interaction --no-ansi --only main --no-root || pip install --no-cache-dir -r requirements.txt) \
     && python -m playwright install chromium
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD python -c "import importlib; importlib.import_module('job_brain_bot.main')" || exit 1
 
 CMD ["python", "-m", "job_brain_bot.main"]

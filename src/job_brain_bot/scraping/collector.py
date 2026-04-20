@@ -3,6 +3,7 @@ import asyncio
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
+import structlog
 
 from job_brain_bot.config import Settings
 from job_brain_bot.db.repo import normalize_job_identity
@@ -12,6 +13,7 @@ from job_brain_bot.types import JobRecord
 
 
 DROP_QUERY_PARAMS = {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "ref", "refid"}
+logger = structlog.get_logger(__name__)
 
 
 def canonicalize_url(raw_url: str) -> str:
@@ -39,10 +41,18 @@ async def collect_jobs_async(
     time_range: str = "7d",
 ) -> list[JobRecord]:
     queries = build_search_queries(role=role, experience=experience, location=location, skills=skills, time_range=time_range)
-    all_links: list[str] = []
-    for query in queries:
-        links = await search_google_public_links_async(query, settings, http_client)
-        all_links.extend(links)
+    query_sem = asyncio.Semaphore(max(1, min(concurrency, 5)))
+
+    async def _query(q: str) -> list[str]:
+        async with query_sem:
+            try:
+                return await search_google_public_links_async(q, settings, http_client)
+            except Exception:
+                logger.exception("query_collection_failed", query=q)
+                return []
+
+    query_results = await asyncio.gather(*[_query(q) for q in queries])
+    all_links = [link for links in query_results for link in links]
 
     deduped_links = list(dict.fromkeys(canonicalize_url(link) for link in all_links))
     sem = asyncio.Semaphore(concurrency)

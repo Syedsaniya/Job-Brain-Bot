@@ -1,4 +1,5 @@
 from collections.abc import Callable
+import structlog
 
 from job_brain_bot.networking.http_client import SharedHttpClientLifecycle
 from sqlalchemy.orm import Session, sessionmaker
@@ -26,6 +27,7 @@ from job_brain_bot.telegram.formatters import (
     format_skill_gap,
 )
 from job_brain_bot.types import UserProfile
+from telegram.error import TelegramError
 
 
 def _parse_profile_args(args: list[str]) -> tuple[str, str, str, list[str]] | None:
@@ -50,11 +52,17 @@ def _parse_time_arg(args: list[str]) -> str:
     return "7d"  # Default to 7 days
 
 
+def _sanitize_free_text(value: str, max_len: int = 80) -> str:
+    safe = "".join(ch for ch in value if ch.isalnum() or ch in {" ", "-", "_", "."}).strip()
+    return safe[:max_len] or "Contact"
+
+
 def build_bot_application(
     settings: Settings,
     session_factory: sessionmaker[Session],
     http_client_lifecycle: SharedHttpClientLifecycle,
 ) -> Application:
+    logger = structlog.get_logger(__name__)
     app = (
         Application.builder()
         .token(settings.telegram_bot_token)
@@ -65,6 +73,30 @@ def build_bot_application(
 
     def _session() -> Callable:
         return session_scope(session_factory)
+
+    async def _safe_reply(
+        update: Update, text: str, *, disable_web_page_preview: bool = False
+    ) -> None:
+        if not update.message:
+            return
+        try:
+            await update.message.reply_text(text, disable_web_page_preview=disable_web_page_preview)
+        except TelegramError:
+            logger.exception("telegram_reply_failed")
+
+    def _resolve_user_job(session: Session, user_id: int, args: list[str]) -> Job | None:
+        views = repo.list_user_job_views(session, user_id, limit=20)
+        if not views:
+            return None
+        job_index = 0
+        if args:
+            try:
+                job_index = int(args[0]) - 1
+            except ValueError:
+                job_index = 0
+        if job_index < 0 or job_index >= len(views):
+            return None
+        return repo.get_job(session, views[job_index].job_id)
 
     async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_user or not update.message:
@@ -80,7 +112,8 @@ def build_bot_application(
         )
         with _session() as session:
             repo.upsert_user(session, profile)
-        await update.message.reply_text(
+        await _safe_reply(
+            update,
             "🧠 Welcome to Job Brain Bot with AI Intelligence!\n\n"
             "*Getting Started:*\n"
             "• /setprofile role|experience|location|skills - Configure your profile\n"
@@ -103,7 +136,8 @@ def build_bot_application(
             return
         parsed = _parse_profile_args(context.args)
         if not parsed:
-            await update.message.reply_text(
+            await _safe_reply(
+                update,
                 "Usage: /setprofile Cybersecurity Analyst|Fresher|Hyderabad|Python,SIEM,Network Security"
             )
             return
@@ -123,7 +157,7 @@ def build_bot_application(
                     alerts_enabled=alerts_enabled,
                 ),
             )
-        await update.message.reply_text("Profile saved successfully.")
+        await _safe_reply(update, "Profile saved successfully.")
 
     async def jobs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_user or not update.message:
@@ -135,7 +169,8 @@ def build_bot_application(
         with _session() as session:
             user = repo.get_user(session, update.effective_user.id)
             if not user:
-                await update.message.reply_text(
+                await _safe_reply(
+                    update,
                     "Please set up your profile first with /setprofile.\n"
                     "Usage: /setprofile role|experience|location|skills"
                 )
@@ -152,7 +187,8 @@ def build_bot_application(
 
         if not ranked:
             time_display = {"24h": "24 hours", "48h": "48 hours", "7d": "7 days"}.get(time_range, time_range)
-            await update.message.reply_text(
+            await _safe_reply(
+                update,
                 f"No jobs found in the last {time_display}.\n"
                 f"Try expanding your search with: /jobs time=7d\n"
                 "Or update your profile with /setprofile"
@@ -160,13 +196,14 @@ def build_bot_application(
             return
 
         time_display = {"24h": "24 hours", "48h": "48 hours", "7d": "7 days"}.get(time_range, time_range)
-        await update.message.reply_text(
-            f"🎯 Here are your top personalized job matches (last {time_display}):"
-        )
-        for item in ranked:
-            await update.message.reply_text(
-                format_job_message(item), disable_web_page_preview=True
+        with _session() as session:
+            repo.replace_user_job_views(
+                session, update.effective_user.id, [item.job.job_id for item in ranked]
             )
+        await _safe_reply(update, f"🎯 Here are your top personalized job matches (last {time_display}):")
+        for idx, item in enumerate(ranked, start=1):
+            rendered = format_job_message(item)
+            await _safe_reply(update, f"#{idx}\n{rendered}", disable_web_page_preview=True)
 
     async def alerts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_user or not update.message:
@@ -179,7 +216,7 @@ def build_bot_application(
         with _session() as session:
             existing = repo.get_user(session, update.effective_user.id)
             if not existing:
-                await update.message.reply_text("Please run /start and /setprofile before configuring alerts.")
+                await _safe_reply(update, "Please run /start and /setprofile before configuring alerts.")
                 return
             profile = UserProfile(
                 user_id=existing.user_id,
@@ -191,7 +228,7 @@ def build_bot_application(
                 alerts_enabled=enable,
             )
             repo.upsert_user(session, profile)
-        await update.message.reply_text(f"Daily alerts {'enabled' if enable else 'disabled'}.")
+        await _safe_reply(update, f"Daily alerts {'enabled' if enable else 'disabled'}.")
 
     async def recommend(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_user or not update.message:
@@ -201,19 +238,23 @@ def build_bot_application(
                 session, settings, http_client_lifecycle.client, update.effective_user.id, max_results=3
             )
         if not ranked:
-            await update.message.reply_text("No recommendations available. Set profile with /setprofile first.")
+            await _safe_reply(update, "No recommendations available. Set profile with /setprofile first.")
             return
-        await update.message.reply_text("🚀 Top recommendations picked for your profile:")
-        for item in ranked:
-            await update.message.reply_text(
-                format_job_message(item), disable_web_page_preview=True
+        with _session() as session:
+            repo.replace_user_job_views(
+                session, update.effective_user.id, [item.job.job_id for item in ranked]
             )
+        await _safe_reply(update, "🚀 Top recommendations picked for your profile:")
+        for idx, item in enumerate(ranked, start=1):
+            rendered = format_job_message(item)
+            await _safe_reply(update, f"#{idx}\n{rendered}", disable_web_page_preview=True)
 
     async def resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.effective_user or not update.message:
             return
         if not update.message.document:
-            await update.message.reply_text(
+            await _safe_reply(
+                update,
                 "Upload your resume as a text-based document with caption /resume."
             )
             return
@@ -230,7 +271,7 @@ def build_bot_application(
 
         parsed_resume = parse_resume_content(filename, bytes(raw), target_role=role_for_ontology)
         if not parsed_resume.text:
-            await update.message.reply_text("Could not parse resume text. Please upload PDF, DOCX, or UTF-8 text.")
+            await _safe_reply(update, "Could not parse resume text. Please upload PDF, DOCX, or UTF-8 text.")
             return
 
         with _session() as session:
@@ -256,7 +297,8 @@ def build_bot_application(
                 alerts_enabled=existing.alerts_enabled,
             )
             repo.upsert_user(session, profile)
-        await update.message.reply_text(
+        await _safe_reply(
+            update,
             "Resume uploaded and parsed.\n"
             f"Detected skills: {', '.join(parsed_resume.skills[:8]) or 'none'}\n"
             f"Detected experience: {parsed_resume.inferred_experience or 'not found'}"
@@ -267,41 +309,27 @@ def build_bot_application(
         if not update.effective_user or not update.message:
             return
 
-        # Get the last job shown to the user
         with _session() as session:
             user = repo.get_user(session, update.effective_user.id)
             if not user:
-                await update.message.reply_text("Please set your profile first with /setprofile")
+                await _safe_reply(update, "Please set your profile first with /setprofile")
                 return
-
-            # Get recent jobs and let user pick which to analyze
-            jobs = repo.list_recent_jobs(session, limit=10)
-
-            if not jobs:
-                await update.message.reply_text("No jobs available to analyze. Try /jobs first.")
+            job = _resolve_user_job(session, update.effective_user.id, context.args)
+            if not job:
+                await _safe_reply(update, "Run /jobs first, then use /analyze [job_number].")
                 return
-
-        # Check if user specified a job index
-        job_index = 0
-        if context.args:
-            try:
-                job_index = int(context.args[0]) - 1
-                job_index = max(0, min(job_index, len(jobs) - 1))
-            except ValueError:
-                pass
-
-        job = jobs[job_index]
 
         if not settings.ai_analysis_enabled:
-            await update.message.reply_text("AI analysis is currently disabled.")
+            await _safe_reply(update, "AI analysis is currently disabled.")
             return
 
         # Analyze the job
         analysis = analyze_job_description(job.title, job.description)
 
-        await update.message.reply_text(
+        await _safe_reply(
+            update,
             f"🤖 AI Analysis for: {job.title}\n\n{format_job_analysis(analysis)}",
-            disable_web_page_preview=True,
+            disable_web_page_preview=True
         )
 
     async def skills(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -312,37 +340,31 @@ def build_bot_application(
         with _session() as session:
             user = repo.get_user(session, update.effective_user.id)
             if not user:
-                await update.message.reply_text("Please set your profile first with /setprofile")
+                await _safe_reply(update, "Please set your profile first with /setprofile")
                 return
 
             user_skills = [s.strip() for s in user.skills.split(",") if s.strip()]
 
-            # Check if user wants to analyze a specific job
-            if context.args:
-                try:
-                    job_index = int(context.args[0]) - 1
-                    jobs = repo.list_recent_jobs(session, limit=20)
-                    if 0 <= job_index < len(jobs):
-                        job = jobs[job_index]
-                        analysis = analyze_job_description(job.title, job.description)
-                        gap = analyze_skill_gaps(user_skills, analysis)
-
-                        await update.message.reply_text(
-                            f"📊 Skill Gap Analysis: Your Profile vs {job.title}\n\n{format_skill_gap(gap)}",
-                            disable_web_page_preview=True,
-                        )
-                        return
-                except ValueError:
-                    pass
-
-            # General skill analysis against available jobs
-            jobs = repo.list_recent_jobs(session, limit=50)
-
-            if not jobs:
-                await update.message.reply_text("No jobs available. Try /jobs first.")
+            selected = _resolve_user_job(session, update.effective_user.id, context.args)
+            if selected:
+                analysis = analyze_job_description(selected.title, selected.description)
+                gap = analyze_skill_gaps(user_skills, analysis)
+                await _safe_reply(
+                    update,
+                    f"📊 Skill Gap Analysis: Your Profile vs {selected.title}\n\n{format_skill_gap(gap)}",
+                    disable_web_page_preview=True
+                )
                 return
 
-            # Analyze against the best matching job
+            jobs = []
+            for view in repo.list_user_job_views(session, update.effective_user.id, limit=20):
+                found = repo.get_job(session, view.job_id)
+                if found:
+                    jobs.append(found)
+            if not jobs:
+                await _safe_reply(update, "Run /jobs first, then use /skills [job_number].")
+                return
+
             from job_brain_bot.matching.scoring import rank_jobs_for_user
             ranked = rank_jobs_for_user(user, jobs)
 
@@ -351,13 +373,14 @@ def build_bot_application(
                 analysis = analyze_job_description(best_job.title, best_job.description)
                 gap = analyze_skill_gaps(user_skills, analysis)
 
-                await update.message.reply_text(
+                await _safe_reply(
+                    update,
                     f"📊 Skill Gap Analysis: Your Profile vs Top Job Match\n"
                     f"Job: {best_job.title} at {best_job.company}\n\n{format_skill_gap(gap)}",
-                    disable_web_page_preview=True,
+                    disable_web_page_preview=True
                 )
             else:
-                await update.message.reply_text("Could not analyze skills. Please try again later.")
+                await _safe_reply(update, "Could not analyze skills. Please try again later.")
 
     async def network(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Generate networking messages. Usage: /network [job_index] [contact_name]"""
@@ -367,7 +390,7 @@ def build_bot_application(
         with _session() as session:
             user = repo.get_user(session, update.effective_user.id)
             if not user:
-                await update.message.reply_text("Please set your profile first with /setprofile")
+                await _safe_reply(update, "Please set your profile first with /setprofile")
                 return
 
             user_skills = [s.strip() for s in user.skills.split(",") if s.strip()]
@@ -380,21 +403,20 @@ def build_bot_application(
                 try:
                     job_index = int(context.args[0]) - 1
                 except ValueError:
-                    contact_name = context.args[0]
+                    contact_name = _sanitize_free_text(context.args[0])
 
             if len(context.args) >= 2:
-                contact_name = context.args[1]
+                contact_name = _sanitize_free_text(context.args[1])
 
-            # Get the job
-            jobs = repo.list_recent_jobs(session, limit=20)
-            if not jobs or job_index >= len(jobs):
-                await update.message.reply_text("No jobs available. Try /jobs first.")
+            selected = _resolve_user_job(session, update.effective_user.id, [str(job_index + 1)])
+            if not selected:
+                await _safe_reply(update, "Run /jobs first, then use /network [job_number] [name].")
                 return
 
-            job = jobs[job_index]
+            job = selected
 
             if not settings.networking_generator_enabled:
-                await update.message.reply_text("Networking generator is currently disabled.")
+                await _safe_reply(update, "Networking generator is currently disabled.")
                 return
 
             # Generate cold message
@@ -409,9 +431,10 @@ def build_bot_application(
                 message_type="linkedin_connection",
             )
 
-            await update.message.reply_text(
+            await _safe_reply(
+                update,
                 f"💬 Networking Message for {job.title} at {job.company}\n\n{format_networking_message(message)}",
-                disable_web_page_preview=True,
+                disable_web_page_preview=True
             )
 
     async def referral(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -422,7 +445,7 @@ def build_bot_application(
         with _session() as session:
             user = repo.get_user(session, update.effective_user.id)
             if not user:
-                await update.message.reply_text("Please set your profile first with /setprofile")
+                await _safe_reply(update, "Please set your profile first with /setprofile")
                 return
 
             user_skills = [s.strip() for s in user.skills.split(",") if s.strip()]
@@ -435,21 +458,20 @@ def build_bot_application(
                 try:
                     job_index = int(context.args[0]) - 1
                 except ValueError:
-                    contact_name = context.args[0]
+                    contact_name = _sanitize_free_text(context.args[0])
 
             if len(context.args) >= 2:
-                contact_name = context.args[1]
+                contact_name = _sanitize_free_text(context.args[1])
 
-            # Get the job
-            jobs = repo.list_recent_jobs(session, limit=20)
-            if not jobs or job_index >= len(jobs):
-                await update.message.reply_text("No jobs available. Try /jobs first.")
+            selected = _resolve_user_job(session, update.effective_user.id, [str(job_index + 1)])
+            if not selected:
+                await _safe_reply(update, "Run /jobs first, then use /referral [job_number] [name].")
                 return
 
-            job = jobs[job_index]
+            job = selected
 
             if not settings.networking_generator_enabled:
-                await update.message.reply_text("Networking generator is currently disabled.")
+                await _safe_reply(update, "Networking generator is currently disabled.")
                 return
 
             # Generate referral request
@@ -463,9 +485,10 @@ def build_bot_application(
                 request_type="colleague",
             )
 
-            await update.message.reply_text(
+            await _safe_reply(
+                update,
                 f"🎯 Referral Request for {job.title} at {job.company}\n\n{format_networking_message(message)}",
-                disable_web_page_preview=True,
+                disable_web_page_preview=True
             )
 
     async def health(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -473,11 +496,26 @@ def build_bot_application(
         if not update.effective_user or not update.message:
             return
 
+        admin_ids = settings.admin_ids_set()
+        if admin_ids and update.effective_user.id not in admin_ids:
+            await _safe_reply(update, "Health diagnostics are restricted to bot administrators.")
+            return
+
         # Perform health check
         status = perform_health_check(settings)
         formatted = format_health_status(status)
 
-        await update.message.reply_text(formatted)
+        await _safe_reply(update, formatted)
+
+    async def _error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        logger.exception("telegram_handler_error", error=str(context.error))
+        if isinstance(update, Update) and update.message:
+            try:
+                await update.message.reply_text(
+                    "Something went wrong while processing your request. Please try again."
+                )
+            except TelegramError:
+                logger.exception("telegram_error_reply_failed")
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("setprofile", setprofile))
@@ -490,4 +528,5 @@ def build_bot_application(
     app.add_handler(CommandHandler("network", network))
     app.add_handler(CommandHandler("referral", referral))
     app.add_handler(CommandHandler("health", health))
+    app.add_error_handler(_error_handler)
     return app

@@ -4,14 +4,19 @@ from urllib.parse import quote_plus
 import asyncio
 import httpx
 from bs4 import BeautifulSoup
+import structlog
 
 from job_brain_bot.config import Settings
 
+logger = structlog.get_logger(__name__)
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15",
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/125.0 Safari/537.36",
 ]
+
+_QUERY_CACHE: dict[str, tuple[float, list[str]]] = {}
+_CACHE_TTL_SECONDS = 600.0
 
 
 def build_search_queries(
@@ -60,17 +65,33 @@ async def _fetch_google_html(query: str, settings: Settings, client: httpx.Async
             response.raise_for_status()
             await asyncio.sleep(random.uniform(settings.min_delay_seconds, settings.max_delay_seconds))
             return response.text
-        except httpx.HTTPError:
+        except httpx.HTTPStatusError as exc:
+            if exc.response is not None and exc.response.status_code not in {429, 500, 502, 503, 504}:
+                logger.warning("google_search_non_retryable_status", status=exc.response.status_code)
+                return ""
             if attempt == 3:
-                raise
-            await asyncio.sleep(min(2**attempt, 8))
+                logger.warning("google_search_retries_exhausted", error=str(exc))
+                return ""
+            await asyncio.sleep(min(2**attempt + random.uniform(0, 0.5), 8))
+        except httpx.HTTPError as exc:
+            if attempt == 3:
+                logger.warning("google_search_http_error", error=str(exc))
+                return ""
+            await asyncio.sleep(min(2**attempt + random.uniform(0, 0.5), 8))
     return ""
 
 
 async def search_google_public_links_async(
     query: str, settings: Settings, client: httpx.AsyncClient
 ) -> list[str]:
+    now = asyncio.get_running_loop().time()
+    cached = _QUERY_CACHE.get(query)
+    if cached and (now - cached[0]) <= _CACHE_TTL_SECONDS:
+        return cached[1][: settings.max_jobs_per_query]
+
     html = await _fetch_google_html(query, settings, client)
+    if not html:
+        return []
     soup = BeautifulSoup(html, "lxml")
     links: list[str] = []
     for a_tag in soup.select("a"):
@@ -80,4 +101,6 @@ async def search_google_public_links_async(
             if link.startswith("http"):
                 links.append(link)
     deduped = list(dict.fromkeys(links))
-    return deduped[: settings.max_jobs_per_query]
+    result = deduped[: settings.max_jobs_per_query]
+    _QUERY_CACHE[query] = (now, result)
+    return result

@@ -52,7 +52,7 @@ def check_database_connection(settings: Settings) -> dict[str, Any]:
     except Exception as e:
         return {
             "status": "error",
-            "error": str(e),
+            "error": "database_connection_failed",
             "connection": "failed",
         }
 
@@ -83,7 +83,7 @@ def check_telegram_api(token: str) -> dict[str, Any]:
     except Exception as e:
         return {
             "status": "error",
-            "error": str(e),
+            "error": "telegram_api_check_failed",
         }
 
 
@@ -105,7 +105,7 @@ def check_scraping_connectivity() -> dict[str, Any]:
         except Exception as e:
             results[url] = {
                 "status": "error",
-                "error": str(e),
+                "error": "endpoint_check_failed",
             }
 
     all_ok = all(r["status"] == "ok" for r in results.values())
@@ -147,7 +147,7 @@ def perform_health_check(settings: Settings) -> HealthStatus:
     except Exception as e:
         checks["ai_modules"] = {
             "status": "error",
-            "error": str(e),
+            "error": "ai_module_health_failed",
         }
 
     # Determine overall status
