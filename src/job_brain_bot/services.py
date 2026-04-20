@@ -12,6 +12,25 @@ from job_brain_bot.scraping.time_parser import TIME_RANGES, normalize_time_range
 from job_brain_bot.signals.hiring_signals import enrich_jobs_with_signals
 
 
+def _parse_roles(role_text: str) -> list[str]:
+    roles = [part.strip() for part in (role_text or "").split(",") if part.strip()]
+    return roles or [role_text.strip()] if role_text.strip() else []
+
+
+def _dedupe_scraped_jobs(scraped_jobs):
+    seen: set[str] = set()
+    deduped = []
+    for job in scraped_jobs:
+        link_key = (job.link or "").strip().lower()
+        fallback = f"{job.title.strip().lower()}|{job.company.strip().lower()}"
+        key = link_key or fallback
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(job)
+    return deduped
+
+
 async def fetch_and_rank_jobs_for_user_async(
     session: Session,
     settings: Settings,
@@ -26,17 +45,22 @@ async def fetch_and_rank_jobs_for_user_async(
 
     time_range = normalize_time_range(time_range)
     skills = [s.strip() for s in user.skills.split(",") if s.strip()]
+    roles = _parse_roles(user.role)
 
-    scraped_jobs = await collect_jobs_async(
-        settings=settings,
-        http_client=http_client,
-        role=user.role,
-        experience=user.experience,
-        location=user.location,
-        skills=skills,
-        concurrency=settings.scraping_concurrency,
-        time_range=time_range,
-    )
+    scraped_jobs = []
+    for role in roles:
+        role_jobs = await collect_jobs_async(
+            settings=settings,
+            http_client=http_client,
+            role=role,
+            experience=user.experience,
+            location=user.location,
+            skills=skills,
+            concurrency=settings.scraping_concurrency,
+            time_range=time_range,
+        )
+        scraped_jobs.extend(role_jobs)
+    scraped_jobs = _dedupe_scraped_jobs(scraped_jobs)
 
     enriched = enrich_jobs_with_signals(scraped_jobs)
     repo.upsert_jobs(session, enriched)

@@ -138,6 +138,7 @@ def build_bot_application(
             "🧠 Welcome to Job Brain Bot with AI Intelligence!\n\n"
             "*Getting Started:*\n"
             "• /setprofile role|experience|location|skills - Configure your profile\n"
+            "  (use comma-separated roles to search multiple roles)\n"
             "• /resume - Upload your resume for better matching\n"
             "• /jobs [time=24h/48h/7d] - Find jobs with time filtering\n\n"
             "*🤖 AI Features:*\n"
@@ -159,7 +160,7 @@ def build_bot_application(
         if not parsed:
             await _safe_reply(
                 update,
-                "Usage: /setprofile Cybersecurity Analyst|Fresher|Hyderabad|Python,SIEM,Network Security",
+                "Usage: /setprofile Cybersecurity Analyst,Backend Engineer|Fresher|Hyderabad|Python,SIEM,Network Security",
             )
             return
         role, experience, location, skills = parsed

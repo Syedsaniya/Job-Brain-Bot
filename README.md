@@ -104,7 +104,8 @@ poetry run pytest
 ### Core Commands
 - `/start` -> Register user and see all commands
 - `/setprofile role|experience|location|skills` -> Set your profile
-  - Example: `/setprofile Cybersecurity Analyst|Fresher|Hyderabad|Python,SIEM,Network Security`
+  - Example: `/setprofile Cybersecurity Analyst,Backend Engineer|Fresher|Hyderabad|Python,SIEM,Network Security`
+  - Multiple roles are supported (comma-separated in the role field)
 - `/jobs [time=24h/48h/7d]` -> Fetch and rank jobs (default: 7 days)
   - Example: `/jobs time=24h` for jobs posted in last 24 hours
 - `/recommend` -> Get top job recommendations
