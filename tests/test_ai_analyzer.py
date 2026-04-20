@@ -1,7 +1,5 @@
 """Tests for AI intelligence analyzer module."""
 
-import pytest
-
 from job_brain_bot.ai_intelligence.analyzer import (
     JobAnalysis,
     analyze_job_description,
@@ -109,8 +107,7 @@ def test_analyze_job_description_structure():
 def test_analyze_job_description_extracts_skills():
     """Test that job analysis extracts expected skills."""
     result = analyze_job_description(
-        "Python Developer",
-        "Required: Python, Django, PostgreSQL. Preferred: Redis, Celery."
+        "Python Developer", "Required: Python, Django, PostgreSQL. Preferred: Redis, Celery."
     )
 
     assert "python" in [s.lower() for s in result.required_skills]
@@ -122,7 +119,9 @@ def test_calculate_skill_match_perfect():
     required = ["python", "sql"]
     preferred = ["aws"]
 
-    matched, missing_required, missing_preferred = calculate_skill_match(user_skills, required, preferred)
+    matched, missing_required, missing_preferred = calculate_skill_match(
+        user_skills, required, preferred
+    )
 
     assert len(matched) == 3
     assert len(missing_required) == 0
@@ -135,7 +134,9 @@ def test_calculate_skill_match_partial():
     required = ["python", "sql", "aws"]
     preferred = ["docker"]
 
-    matched, missing_required, missing_preferred = calculate_skill_match(user_skills, required, preferred)
+    matched, missing_required, missing_preferred = calculate_skill_match(
+        user_skills, required, preferred
+    )
 
     assert "python" in matched or "sql" in matched
     assert "aws" in missing_required
@@ -162,8 +163,7 @@ def test_analyze_job_description_handles_short_description():
 def test_analyze_job_description_detects_soft_skills():
     """Test soft skill extraction."""
     result = analyze_job_description(
-        "Manager",
-        "Need good communication skills, leadership ability, and problem solving."
+        "Manager", "Need good communication skills, leadership ability, and problem solving."
     )
 
     soft_skills = [s.lower() for s in result.soft_skills]

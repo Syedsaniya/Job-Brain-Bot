@@ -1,11 +1,11 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from job_brain_bot.networking.http_client import SharedHttpClientLifecycle
 from sqlalchemy.orm import Session, sessionmaker
 from telegram.ext import Application
 
 from job_brain_bot.config import Settings
 from job_brain_bot.db import repo
 from job_brain_bot.db.session import session_scope
+from job_brain_bot.networking.http_client import SharedHttpClientLifecycle
 from job_brain_bot.services import fetch_and_rank_jobs_for_user_async
 from job_brain_bot.telegram.formatters import format_job_message
 

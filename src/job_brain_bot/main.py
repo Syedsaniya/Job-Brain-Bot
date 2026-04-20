@@ -12,7 +12,9 @@ def run() -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
     logger = structlog.get_logger(__name__)
-    logger.info("startup_configuration", db_driver_prefix=database_driver_prefix(settings.database_url))
+    logger.info(
+        "startup_configuration", db_driver_prefix=database_driver_prefix(settings.database_url)
+    )
     if settings.auto_create_tables:
         create_tables(settings)
         logger.info("schema_bootstrap", mode="auto_create_tables_enabled")

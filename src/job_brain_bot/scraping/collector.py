@@ -1,5 +1,5 @@
-from collections.abc import Iterable
 import asyncio
+from collections.abc import Iterable
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
@@ -7,21 +7,37 @@ import structlog
 
 from job_brain_bot.config import Settings
 from job_brain_bot.db.repo import normalize_job_identity
-from job_brain_bot.scraping.google_search import build_search_queries, search_google_public_links_async
+from job_brain_bot.scraping.google_search import (
+    build_search_queries,
+    search_google_public_links_async,
+)
 from job_brain_bot.scraping.job_page_parser import parse_job_page_async
 from job_brain_bot.types import JobRecord
 
-
-DROP_QUERY_PARAMS = {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "ref", "refid"}
+DROP_QUERY_PARAMS = {
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "utm_term",
+    "utm_content",
+    "ref",
+    "refid",
+}
 logger = structlog.get_logger(__name__)
 
 
 def canonicalize_url(raw_url: str) -> str:
     parts = urlsplit(raw_url.strip())
-    query_pairs = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k.lower() not in DROP_QUERY_PARAMS]
+    query_pairs = [
+        (k, v)
+        for k, v in parse_qsl(parts.query, keep_blank_values=True)
+        if k.lower() not in DROP_QUERY_PARAMS
+    ]
     normalized_query = urlencode(sorted(query_pairs))
     normalized_path = parts.path.rstrip("/") or "/"
-    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), normalized_path, normalized_query, ""))
+    return urlunsplit(
+        (parts.scheme.lower(), parts.netloc.lower(), normalized_path, normalized_query, "")
+    )
 
 
 def collect_jobs(
@@ -40,7 +56,9 @@ async def collect_jobs_async(
     concurrency: int = 8,
     time_range: str = "7d",
 ) -> list[JobRecord]:
-    queries = build_search_queries(role=role, experience=experience, location=location, skills=skills, time_range=time_range)
+    queries = build_search_queries(
+        role=role, experience=experience, location=location, skills=skills, time_range=time_range
+    )
     query_sem = asyncio.Semaphore(max(1, min(concurrency, 5)))
 
     async def _query(q: str) -> list[str]:

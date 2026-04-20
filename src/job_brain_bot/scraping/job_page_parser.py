@@ -1,13 +1,13 @@
+import asyncio
+import json
 import random
 import re
-import json
-import asyncio
 from html import unescape
 from urllib.parse import urlparse
 
 import httpx
-from bs4 import BeautifulSoup
 import structlog
+from bs4 import BeautifulSoup
 
 from job_brain_bot.config import Settings
 from job_brain_bot.scraping.dynamic_fetch import fetch_dynamic_html_async
@@ -68,7 +68,9 @@ def _extract_company(soup: BeautifulSoup, default: str) -> str:
         element = soup.select_one(selector)
         if not element:
             continue
-        content = element.get("content") or element.get("data-company") or element.get_text(strip=True)
+        content = (
+            element.get("content") or element.get("data-company") or element.get_text(strip=True)
+        )
         if content:
             return content.strip()[:200]
 
@@ -98,7 +100,9 @@ async def parse_job_page_async(
             if response.status_code >= 400:
                 return None
             html = response.text
-            await asyncio.sleep(random.uniform(settings.min_delay_seconds, settings.max_delay_seconds))
+            await asyncio.sleep(
+                random.uniform(settings.min_delay_seconds, settings.max_delay_seconds)
+            )
         except httpx.HTTPError:
             if settings.playwright_enabled:
                 html = await fetch_dynamic_html_async(url, settings.playwright_timeout_ms)
@@ -106,7 +110,9 @@ async def parse_job_page_async(
             return None
 
         soup = BeautifulSoup(html, "lxml")
-        title = (soup.title.string.strip() if soup.title and soup.title.string else "Unknown role")[:250]
+        title = (soup.title.string.strip() if soup.title and soup.title.string else "Unknown role")[
+            :250
+        ]
         body_text = soup.get_text(" ", strip=True)
         company_guess = urlparse(url).netloc.replace("www.", "").split(".")[0].title()
         company = _extract_company(soup, company_guess)

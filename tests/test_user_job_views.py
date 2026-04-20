@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from job_brain_bot.db import repo
-from job_brain_bot.db.models import Base, Job, User
+from job_brain_bot.db.models import Base, Job
 from job_brain_bot.types import UserProfile
 
 
@@ -17,10 +17,28 @@ def test_replace_and_list_user_job_views() -> None:
     session = _session()
     repo.upsert_user(
         session,
-        UserProfile(user_id=123, role="Backend", experience="Fresher", location="Remote", skills=[]),
+        UserProfile(
+            user_id=123, role="Backend", experience="Fresher", location="Remote", skills=[]
+        ),
     )
-    j1 = Job(title="Backend Engineer", company="A", location="Remote", experience="0-2 years", link="https://a/1", source="company_page", description="")
-    j2 = Job(title="Backend Engineer 2", company="B", location="Remote", experience="0-2 years", link="https://b/2", source="company_page", description="")
+    j1 = Job(
+        title="Backend Engineer",
+        company="A",
+        location="Remote",
+        experience="0-2 years",
+        link="https://a/1",
+        source="company_page",
+        description="",
+    )
+    j2 = Job(
+        title="Backend Engineer 2",
+        company="B",
+        location="Remote",
+        experience="0-2 years",
+        link="https://b/2",
+        source="company_page",
+        description="",
+    )
     session.add_all([j1, j2])
     session.commit()
 

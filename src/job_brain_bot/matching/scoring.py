@@ -1,6 +1,6 @@
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import re
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from job_brain_bot.db.models import Job, User
 from job_brain_bot.matching.skill_ontology import get_role_skill_set
@@ -24,7 +24,11 @@ class ScoredJob:
 
 
 def _tokenize(text: str) -> set[str]:
-    return {part.strip().lower() for part in text.replace("/", " ").replace(",", " ").split() if part.strip()}
+    return {
+        part.strip().lower()
+        for part in text.replace("/", " ").replace(",", " ").split()
+        if part.strip()
+    }
 
 
 def _skills_match(profile_skills: set[str], job_text: str) -> float:
@@ -54,7 +58,9 @@ def _extract_resume_fields(resume_text: str) -> tuple[set[str], set[str]]:
     if skills_match:
         skills = {item.strip().lower() for item in skills_match.group(1).split(",") if item.strip()}
     if keywords_match:
-        keywords = {item.strip().lower() for item in keywords_match.group(1).split(",") if item.strip()}
+        keywords = {
+            item.strip().lower() for item in keywords_match.group(1).split(",") if item.strip()
+        }
     return skills, keywords
 
 
@@ -110,7 +116,7 @@ def _source_quality(source: str) -> float:
 def _recency_score(created_at: datetime | None) -> float:
     if not created_at:
         return 0.4
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     age_hours = max((now - created_at).total_seconds() / 3600, 0.0)
     if age_hours <= 24:
         return 1.0
@@ -136,11 +142,15 @@ def score_job_for_user(user: User, job: Job) -> ScoredJob:
     experience_component = _experience_match(user.experience, job.experience) * EXPERIENCE_WEIGHT
     location_component = _location_match(user.location, job.location) * LOCATION_WEIGHT
     keyword_component = _keyword_relevance(user.role, job.title, job.description) * KEYWORD_WEIGHT
-    ontology_component = _ontology_alignment(user.role, profile_skills | resume_skills, job_text) * 3
+    ontology_component = (
+        _ontology_alignment(user.role, profile_skills | resume_skills, job_text) * 3
+    )
 
     quality_boost = _source_quality(job.source) * 2
     # Use posted_date if available, otherwise fall back to created_at
-    recency_value = _recency_score(job.posted_date if job.posted_date else job.created_at) * RECENCY_WEIGHT
+    recency_value = (
+        _recency_score(job.posted_date if job.posted_date else job.created_at) * RECENCY_WEIGHT
+    )
     total = (
         skills_component
         + experience_component

@@ -1,14 +1,14 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy.orm import Session
 import httpx
+from sqlalchemy.orm import Session
 
 from job_brain_bot.config import Settings
 from job_brain_bot.db import repo
 from job_brain_bot.matching.filters import filter_jobs_for_profile
 from job_brain_bot.matching.scoring import ScoredJob, rank_jobs_for_user
 from job_brain_bot.scraping.collector import collect_jobs_async
-from job_brain_bot.scraping.time_parser import TIME_RANGES, is_within_time_range, normalize_time_range
+from job_brain_bot.scraping.time_parser import TIME_RANGES, normalize_time_range
 from job_brain_bot.signals.hiring_signals import enrich_jobs_with_signals
 
 
@@ -46,7 +46,7 @@ async def fetch_and_rank_jobs_for_user_async(
 
     # Apply time-based filtering if time_range is specified
     if time_range in TIME_RANGES:
-        cutoff = datetime.now(timezone.utc) - TIME_RANGES[time_range]
+        cutoff = datetime.now(UTC) - TIME_RANGES[time_range]
         jobs = [job for job in jobs if job.posted_date is not None and job.posted_date >= cutoff]
 
     filtered = filter_jobs_for_profile(jobs, user.experience)

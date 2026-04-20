@@ -5,10 +5,7 @@ pattern matching and keyword extraction.
 """
 
 import re
-from collections import Counter
 from dataclasses import dataclass, field
-
-from job_brain_bot.ai_intelligence.skill_ontology_expanded import SKILL_DATABASE
 
 
 @dataclass(slots=True)

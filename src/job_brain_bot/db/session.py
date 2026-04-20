@@ -1,5 +1,5 @@
-from contextlib import contextmanager
 from collections.abc import Generator
+from contextlib import contextmanager
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -46,7 +46,9 @@ def build_engine(settings: Settings):
 
 
 def build_session_factory(settings: Settings) -> sessionmaker[Session]:
-    return sessionmaker(bind=build_engine(settings), autoflush=False, autocommit=False, expire_on_commit=False)
+    return sessionmaker(
+        bind=build_engine(settings), autoflush=False, autocommit=False, expire_on_commit=False
+    )
 
 
 def create_tables(settings: Settings) -> None:

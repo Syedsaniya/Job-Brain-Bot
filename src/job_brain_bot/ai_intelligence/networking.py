@@ -140,8 +140,8 @@ def _get_company_interest_reason(company: str, job_analysis: JobAnalysis) -> str
     reasons = [
         f"the innovative work you're doing in {job_analysis.role_category}",
         f"your commitment to {random.choice(['cutting-edge technology', 'professional development', 'innovation'])}",
-        f"the impact your team is making in the industry",
-        f"the strong engineering culture I've heard about",
+        "the impact your team is making in the industry",
+        "the strong engineering culture I've heard about",
     ]
     return random.choice(reasons)
 
@@ -193,11 +193,17 @@ def generate_cold_message(
     topic = job_analysis.role_category if job_analysis else "technology"
     top_skills = ", ".join(user_skills[:3]) if user_skills else "relevant technical skills"
     matching_skill = user_skills[0] if user_skills else "key technologies"
-    company_interest = _get_company_interest_reason(company, job_analysis) if job_analysis else "your innovative work"
+    company_interest = (
+        _get_company_interest_reason(company, job_analysis)
+        if job_analysis
+        else "your innovative work"
+    )
     specific_achievement = _get_specific_achievement(company)
 
     # Select template
-    templates = COLD_MESSAGE_TEMPLATES.get(message_type, COLD_MESSAGE_TEMPLATES["linkedin_connection"])
+    templates = COLD_MESSAGE_TEMPLATES.get(
+        message_type, COLD_MESSAGE_TEMPLATES["linkedin_connection"]
+    )
     template = random.choice(templates)
 
     # Format the message

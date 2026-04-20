@@ -1,11 +1,10 @@
-from dataclasses import dataclass
 import ipaddress
 import socket
+from dataclasses import dataclass
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
 import httpx
-
 
 LOGIN_HINTS = ("login", "signin", "auth", "account")
 

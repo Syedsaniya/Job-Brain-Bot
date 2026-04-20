@@ -5,14 +5,9 @@ suggests certifications and learning resources.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from job_brain_bot.ai_intelligence.analyzer import JobAnalysis
 from job_brain_bot.ai_intelligence.skill_ontology_expanded import (
-    CERTIFICATION_DETAILS,
-    SKILL_DATABASE,
-    CareerTrack,
-    SkillPathway,
     get_career_track,
     get_certification_info,
     get_skill_pathway,
@@ -100,7 +95,11 @@ def prioritize_missing_skill(skill: str, job_analysis: JobAnalysis) -> str:
 
     # Critical skills are often mentioned first or multiple times
     if skill_lower in ["python", "javascript", "sql"]:
-        return "critical" if skill_lower in [s.lower() for s in job_analysis.required_skills[:3]] else "high"
+        return (
+            "critical"
+            if skill_lower in [s.lower() for s in job_analysis.required_skills[:3]]
+            else "high"
+        )
 
     # Check if skill is in required list (not just preferred)
     if skill_lower in [s.lower() for s in job_analysis.required_skills]:
@@ -124,7 +123,13 @@ def prioritize_missing_skill(skill: str, job_analysis: JobAnalysis) -> str:
 def estimate_difficulty(skill: str) -> str:
     """Estimate learning difficulty for a skill."""
     easy_skills = ["git", "html", "css", "basic python", "excel"]
-    hard_skills = ["kubernetes", "machine learning", "cissp", "system design", "penetration testing"]
+    hard_skills = [
+        "kubernetes",
+        "machine learning",
+        "cissp",
+        "system design",
+        "penetration testing",
+    ]
 
     skill_lower = skill.lower()
 
@@ -215,11 +220,11 @@ def get_learning_paths(gaps: list[SkillGap], role_category: str) -> list[dict]:
     paths = []
 
     # Sort by priority and difficulty
-    sorted_gaps = sorted(gaps, key=lambda g: (g.priority != "critical", g.priority != "high", g.difficulty))
+    sorted_gaps = sorted(
+        gaps, key=lambda g: (g.priority != "critical", g.priority != "high", g.difficulty)
+    )
 
     for gap in sorted_gaps[:5]:  # Top 5 gaps
-        pathway = get_skill_pathway(gap.skill)
-
         path = {
             "skill": gap.skill,
             "priority": gap.priority,

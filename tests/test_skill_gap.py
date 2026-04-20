@@ -1,11 +1,8 @@
 """Tests for skill gap analysis module."""
 
-import pytest
-
-from job_brain_bot.ai_intelligence.analyzer import JobAnalysis, analyze_job_description
+from job_brain_bot.ai_intelligence.analyzer import JobAnalysis
 from job_brain_bot.ai_intelligence.skill_gap import (
     GapAnalysis,
-    SkillGap,
     analyze_skill_gaps,
     calculate_skill_match,
     estimate_learning_hours,
@@ -224,16 +221,30 @@ def test_analyze_skill_gaps_recommendation_based_on_coverage():
     # Strong match
     strong = analyze_skill_gaps(
         ["python", "sql", "aws"],
-        JobAnalysis(["python", "sql", "aws"], [], "", "backend", [], [], [], [], [], [], [])
+        JobAnalysis(["python", "sql", "aws"], [], "", "backend", [], [], [], [], [], [], []),
     )
     assert "strong" in strong.recommendation.lower() or "good" in strong.recommendation.lower()
 
     # Weak match
     weak = analyze_skill_gaps(
         ["python"],
-        JobAnalysis(["python", "sql", "aws", "docker", "kubernetes"], [], "", "backend", [], [], [], [], [], [], [])
+        JobAnalysis(
+            ["python", "sql", "aws", "docker", "kubernetes"],
+            [],
+            "",
+            "backend",
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+        ),
     )
-    assert any(word in weak.recommendation.lower() for word in ["gap", "significant", "substantial"])
+    assert any(
+        word in weak.recommendation.lower() for word in ["gap", "significant", "substantial"]
+    )
 
 
 def test_skill_gap_includes_resources():

@@ -1,10 +1,10 @@
 from collections.abc import Callable
-import structlog
 
-from job_brain_bot.networking.http_client import SharedHttpClientLifecycle
-from sqlalchemy.orm import Session, sessionmaker
+import structlog
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session, sessionmaker
 from telegram import Update
+from telegram.error import TelegramError
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 from job_brain_bot.ai_intelligence.analyzer import analyze_job_description
@@ -14,13 +14,14 @@ from job_brain_bot.ai_intelligence.networking import (
 )
 from job_brain_bot.ai_intelligence.skill_gap import analyze_skill_gaps
 from job_brain_bot.config import Settings
-from job_brain_bot.health import format_health_status, perform_health_check
 from job_brain_bot.db import repo
-from job_brain_bot.db.session import session_scope
 from job_brain_bot.db.models import Job
+from job_brain_bot.db.session import session_scope
+from job_brain_bot.health import format_health_status, perform_health_check
+from job_brain_bot.networking.http_client import SharedHttpClientLifecycle
 from job_brain_bot.resume.parser import parse_resume_content
-from job_brain_bot.services import fetch_and_rank_jobs_for_user_async
 from job_brain_bot.scraping.time_parser import normalize_time_range
+from job_brain_bot.services import fetch_and_rank_jobs_for_user_async
 from job_brain_bot.telegram.formatters import (
     format_job_analysis,
     format_job_message,
@@ -28,7 +29,6 @@ from job_brain_bot.telegram.formatters import (
     format_skill_gap,
 )
 from job_brain_bot.types import UserProfile
-from telegram.error import TelegramError
 
 
 def _parse_profile_args(args: list[str]) -> tuple[str, str, str, list[str]] | None:
@@ -149,7 +149,7 @@ def build_bot_application(
             "💓 /health - Check bot health & database connectivity\n"
             "*Other Commands:*\n"
             "• /recommend - Get top job recommendations\n"
-            "• /alerts on/off - Enable/disable job alerts"
+            "• /alerts on/off - Enable/disable job alerts",
         )
 
     async def setprofile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -159,7 +159,7 @@ def build_bot_application(
         if not parsed:
             await _safe_reply(
                 update,
-                "Usage: /setprofile Cybersecurity Analyst|Fresher|Hyderabad|Python,SIEM,Network Security"
+                "Usage: /setprofile Cybersecurity Analyst|Fresher|Hyderabad|Python,SIEM,Network Security",
             )
             return
         role, experience, location, skills = parsed
@@ -193,7 +193,7 @@ def build_bot_application(
                 await _safe_reply(
                     update,
                     "Please set up your profile first with /setprofile.\n"
-                    "Usage: /setprofile role|experience|location|skills"
+                    "Usage: /setprofile role|experience|location|skills",
                 )
                 return
 
@@ -207,21 +207,27 @@ def build_bot_application(
             )
 
         if not ranked:
-            time_display = {"24h": "24 hours", "48h": "48 hours", "7d": "7 days"}.get(time_range, time_range)
+            time_display = {"24h": "24 hours", "48h": "48 hours", "7d": "7 days"}.get(
+                time_range, time_range
+            )
             await _safe_reply(
                 update,
                 f"No jobs found in the last {time_display}.\n"
                 f"Try expanding your search with: /jobs time=7d\n"
-                "Or update your profile with /setprofile"
+                "Or update your profile with /setprofile",
             )
             return
 
-        time_display = {"24h": "24 hours", "48h": "48 hours", "7d": "7 days"}.get(time_range, time_range)
+        time_display = {"24h": "24 hours", "48h": "48 hours", "7d": "7 days"}.get(
+            time_range, time_range
+        )
         with _session() as session:
             repo.replace_user_job_views(
                 session, update.effective_user.id, [item.job.job_id for item in ranked]
             )
-        await _safe_reply(update, f"🎯 Here are your top personalized job matches (last {time_display}):")
+        await _safe_reply(
+            update, f"🎯 Here are your top personalized job matches (last {time_display}):"
+        )
         for idx, item in enumerate(ranked, start=1):
             rendered = format_job_message(item)
             await _safe_reply(update, f"#{idx}\n{rendered}", disable_web_page_preview=True)
@@ -237,7 +243,9 @@ def build_bot_application(
         with _session() as session:
             existing = repo.get_user(session, update.effective_user.id)
             if not existing:
-                await _safe_reply(update, "Please run /start and /setprofile before configuring alerts.")
+                await _safe_reply(
+                    update, "Please run /start and /setprofile before configuring alerts."
+                )
                 return
             profile = UserProfile(
                 user_id=existing.user_id,
@@ -256,10 +264,16 @@ def build_bot_application(
             return
         with _session() as session:
             ranked = await fetch_and_rank_jobs_for_user_async(
-                session, settings, http_client_lifecycle.client, update.effective_user.id, max_results=3
+                session,
+                settings,
+                http_client_lifecycle.client,
+                update.effective_user.id,
+                max_results=3,
             )
         if not ranked:
-            await _safe_reply(update, "No recommendations available. Set profile with /setprofile first.")
+            await _safe_reply(
+                update, "No recommendations available. Set profile with /setprofile first."
+            )
             return
         with _session() as session:
             repo.replace_user_job_views(
@@ -275,8 +289,7 @@ def build_bot_application(
             return
         if not update.message.document:
             await _safe_reply(
-                update,
-                "Upload your resume as a text-based document with caption /resume."
+                update, "Upload your resume as a text-based document with caption /resume."
             )
             return
         telegram_file = await context.bot.get_file(update.message.document.file_id)
@@ -286,13 +299,17 @@ def build_bot_application(
         with _session() as session:
             existing = repo.get_user(session, update.effective_user.id)
             if not existing:
-                await update.message.reply_text("Please run /start and /setprofile before uploading a resume.")
+                await update.message.reply_text(
+                    "Please run /start and /setprofile before uploading a resume."
+                )
                 return
             role_for_ontology = existing.role
 
         parsed_resume = parse_resume_content(filename, bytes(raw), target_role=role_for_ontology)
         if not parsed_resume.text:
-            await _safe_reply(update, "Could not parse resume text. Please upload PDF, DOCX, or UTF-8 text.")
+            await _safe_reply(
+                update, "Could not parse resume text. Please upload PDF, DOCX, or UTF-8 text."
+            )
             return
 
         with _session() as session:
@@ -322,7 +339,7 @@ def build_bot_application(
             update,
             "Resume uploaded and parsed.\n"
             f"Detected skills: {', '.join(parsed_resume.skills[:8]) or 'none'}\n"
-            f"Detected experience: {parsed_resume.inferred_experience or 'not found'}"
+            f"Detected experience: {parsed_resume.inferred_experience or 'not found'}",
         )
 
     async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -350,7 +367,7 @@ def build_bot_application(
         await _safe_reply(
             update,
             f"🤖 AI Analysis for: {job.title}\n\n{format_job_analysis(analysis)}",
-            disable_web_page_preview=True
+            disable_web_page_preview=True,
         )
 
     async def skills(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -373,7 +390,7 @@ def build_bot_application(
                 await _safe_reply(
                     update,
                     f"📊 Skill Gap Analysis: Your Profile vs {selected.title}\n\n{format_skill_gap(gap)}",
-                    disable_web_page_preview=True
+                    disable_web_page_preview=True,
                 )
                 return
 
@@ -387,6 +404,7 @@ def build_bot_application(
                 return
 
             from job_brain_bot.matching.scoring import rank_jobs_for_user
+
             ranked = rank_jobs_for_user(user, jobs)
 
             if ranked:
@@ -398,7 +416,7 @@ def build_bot_application(
                     update,
                     f"📊 Skill Gap Analysis: Your Profile vs Top Job Match\n"
                     f"Job: {best_job.title} at {best_job.company}\n\n{format_skill_gap(gap)}",
-                    disable_web_page_preview=True
+                    disable_web_page_preview=True,
                 )
             else:
                 await _safe_reply(update, "Could not analyze skills. Please try again later.")
@@ -455,7 +473,7 @@ def build_bot_application(
             await _safe_reply(
                 update,
                 f"💬 Networking Message for {job.title} at {job.company}\n\n{format_networking_message(message)}",
-                disable_web_page_preview=True
+                disable_web_page_preview=True,
             )
 
     async def referral(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -486,7 +504,9 @@ def build_bot_application(
 
             selected = _resolve_user_job(session, update.effective_user.id, [str(job_index + 1)])
             if not selected:
-                await _safe_reply(update, "Run /jobs first, then use /referral [job_number] [name].")
+                await _safe_reply(
+                    update, "Run /jobs first, then use /referral [job_number] [name]."
+                )
                 return
 
             job = selected
@@ -509,7 +529,7 @@ def build_bot_application(
             await _safe_reply(
                 update,
                 f"🎯 Referral Request for {job.title} at {job.company}\n\n{format_networking_message(message)}",
-                disable_web_page_preview=True
+                disable_web_page_preview=True,
             )
 
     async def health(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -5,7 +5,6 @@ and learning resources.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass(slots=True)
@@ -52,7 +51,10 @@ SKILL_DATABASE: dict[str, SkillPathway] = {
             "Python Concurrency",
             "Machine Learning with Python",
         ],
-        certifications=["PCAP - Python Certified Associate Programmer", "PCPP - Python Certified Professional"],
+        certifications=[
+            "PCAP - Python Certified Associate Programmer",
+            "PCPP - Python Certified Professional",
+        ],
         estimated_hours=80,
     ),
     "javascript": SkillPathway(
@@ -145,7 +147,10 @@ SKILL_DATABASE: dict[str, SkillPathway] = {
         beginner_resources=["Kubernetes Basics", "Katacoda Kubernetes"],
         intermediate_resources=["Kubernetes Up and Running", "CKA Prep"],
         advanced_resources=["Kubernetes Patterns", "Kubernetes Security"],
-        certifications=["CKA - Certified Kubernetes Administrator", "CKAD - Certified Kubernetes Application Developer"],
+        certifications=[
+            "CKA - Certified Kubernetes Administrator",
+            "CKAD - Certified Kubernetes Application Developer",
+        ],
         estimated_hours=80,
     ),
     # Cybersecurity
@@ -214,24 +219,24 @@ CAREER_TRACKS: dict[str, CareerTrack] = {
     "frontend": CareerTrack(
         role="Frontend Developer",
         entry_skills=["html", "css", "javascript", "git"],
-        mid_skills=["react" "typescript", "css frameworks", "testing", "ci/cd"],
-        senior_skills=["react" "performance", "architecture", "mentoring", "system design"],
+        mid_skills=["reacttypescript", "css frameworks", "testing", "ci/cd"],
+        senior_skills=["reactperformance", "architecture", "mentoring", "system design"],
         recommended_certifications=["Meta Front-End Developer"],
         complementary_skills=["ui/ux", "accessibility", "seo"],
     ),
     "backend": CareerTrack(
         role="Backend Developer",
-        entry_skills=["python" "javascript" "sql", "git", "rest apis"],
-        mid_skills=["python" "databases", "caching", "message queues", "microservices"],
-        senior_skills=["python" "system design", "scalability", "security", "mentoring"],
+        entry_skills=["pythonjavascriptsql", "git", "rest apis"],
+        mid_skills=["pythondatabases", "caching", "message queues", "microservices"],
+        senior_skills=["pythonsystem design", "scalability", "security", "mentoring"],
         recommended_certifications=["AWS Solutions Architect", "Docker Certified"],
         complementary_skills=["devops", "cloud", "distributed systems"],
     ),
     "devops": CareerTrack(
         role="DevOps Engineer",
-        entry_skills=["linux", "git", "python" "bash", "cloud basics"],
+        entry_skills=["linux", "git", "pythonbash", "cloud basics"],
         mid_skills=["docker", "kubernetes", "ci/cd", "iac", "monitoring"],
-        senior_skills=["kubernetes" "security", "platform engineering", "sre practices"],
+        senior_skills=["kubernetessecurity", "platform engineering", "sre practices"],
         recommended_certifications=[
             "AWS Solutions Architect",
             "CKA",
@@ -243,7 +248,7 @@ CAREER_TRACKS: dict[str, CareerTrack] = {
         role="Security Analyst",
         entry_skills=["networking", "linux", "security basics", "python"],
         mid_skills=["siem", "incident response", "vulnerability assessment", "threat hunting"],
-        senior_skills=["penetration testing" "forensics", "security architecture", "mentoring"],
+        senior_skills=["penetration testingforensics", "security architecture", "mentoring"],
         recommended_certifications=[
             "CompTIA Security+",
             "CEH",
@@ -254,17 +259,17 @@ CAREER_TRACKS: dict[str, CareerTrack] = {
     ),
     "fullstack": CareerTrack(
         role="Full Stack Developer",
-        entry_skills=["javascript", "python" "html", "css", "sql", "git"],
-        mid_skills=["react" "node.js", "databases", "cloud services", "testing"],
-        senior_skills=["react" "architecture", "performance", "security", "leadership"],
+        entry_skills=["javascript", "pythonhtml", "css", "sql", "git"],
+        mid_skills=["reactnode.js", "databases", "cloud services", "testing"],
+        senior_skills=["reactarchitecture", "performance", "security", "leadership"],
         recommended_certifications=["AWS Developer", "Meta Full-Stack"],
         complementary_skills=["devops", "product management", "ux"],
     ),
     "data": CareerTrack(
         role="Data Scientist",
-        entry_skills=["python" "sql", "statistics", "pandas", "numpy"],
+        entry_skills=["pythonsql", "statistics", "pandas", "numpy"],
         mid_skills=["machine learning", "data visualization", "big data", "cloud ml"],
-        senior_skills=["machine learning" "deep learning", "mlops", "leadership"],
+        senior_skills=["machine learningdeep learning", "mlops", "leadership"],
         recommended_certifications=["Google ML Engineer", "AWS ML Specialty"],
         complementary_skills=["domain expertise", "communication", "engineering"],
     ),
@@ -332,13 +337,13 @@ CERTIFICATION_DETAILS: dict[str, dict] = {
 }
 
 
-def get_skill_pathway(skill: str) -> Optional[SkillPathway]:
+def get_skill_pathway(skill: str) -> SkillPathway | None:
     """Get learning pathway for a skill."""
     skill_lower = skill.lower()
     return SKILL_DATABASE.get(skill_lower)
 
 
-def get_career_track(role: str) -> Optional[CareerTrack]:
+def get_career_track(role: str) -> CareerTrack | None:
     """Get career track for a role category."""
     role_lower = role.lower()
 
@@ -365,7 +370,7 @@ def get_career_track(role: str) -> Optional[CareerTrack]:
     return None
 
 
-def get_certification_info(cert_name: str) -> Optional[dict]:
+def get_certification_info(cert_name: str) -> dict | None:
     """Get detailed information about a certification."""
     for cert_key, info in CERTIFICATION_DETAILS.items():
         if cert_name.lower() in cert_key.lower() or cert_key.lower() in cert_name.lower():

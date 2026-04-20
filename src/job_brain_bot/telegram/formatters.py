@@ -26,7 +26,9 @@ def format_job_analysis(analysis: JobAnalysis) -> str:
         lines.extend(["", "*⭐ Preferred Skills:*", ", ".join(analysis.preferred_skills[:8])])
 
     if analysis.certifications_mentioned:
-        lines.extend(["", "*📜 Certifications Mentioned:*", ", ".join(analysis.certifications_mentioned)])
+        lines.extend(
+            ["", "*📜 Certifications Mentioned:*", ", ".join(analysis.certifications_mentioned)]
+        )
 
     if analysis.soft_skills:
         lines.extend(["", "*🤝 Soft Skills:*", ", ".join(analysis.soft_skills[:6])])
@@ -64,7 +66,9 @@ def format_skill_gap(gap: GapAnalysis) -> str:
             priority_emoji = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}.get(
                 skill_gap.priority, "⚪"
             )
-            lines.append(f"{priority_emoji} *{skill_gap.skill}* ({skill_gap.priority}, ~{skill_gap.learning_hours}h)")
+            lines.append(
+                f"{priority_emoji} *{skill_gap.skill}* ({skill_gap.priority}, ~{skill_gap.learning_hours}h)"
+            )
             if skill_gap.resources:
                 lines.append(f"   📖 {skill_gap.resources[0]}")
 
@@ -99,13 +103,15 @@ def format_networking_message(message: NetworkingMessage) -> str:
     for tip in message.tips:
         lines.append(f"• {tip}")
 
-    lines.extend([
-        "",
-        "*🔄 Follow-up (if no response after 5-7 days):*",
-        "```",
-        message.follow_up[:500],
-        "```",
-    ])
+    lines.extend(
+        [
+            "",
+            "*🔄 Follow-up (if no response after 5-7 days):*",
+            "```",
+            message.follow_up[:500],
+            "```",
+        ]
+    )
 
     return "\n".join(lines)
 
@@ -123,7 +129,13 @@ def format_job_message(scored_job: ScoredJob) -> str:
     job: Job = scored_job.job
     link = job.link or "N/A"
     query = recruiter_search_query(job.company, job.title)
-    score_badge = "🔥 Strong Match" if scored_job.total_score >= 75 else "✅ Good Match" if scored_job.total_score >= 55 else "🟡 Explore"
+    score_badge = (
+        "🔥 Strong Match"
+        if scored_job.total_score >= 75
+        else "✅ Good Match"
+        if scored_job.total_score >= 55
+        else "🟡 Explore"
+    )
 
     # Format posting time
     posted_time = format_time_ago(job.posted_date)
@@ -138,7 +150,7 @@ def format_job_message(scored_job: ScoredJob) -> str:
         f"⭐ Match Score: {scored_job.total_score}/100",
         f"🧠 Score Breakdown: Skills {scored_job.skills_score:.1f}, Exp {scored_job.experience_score:.1f}, Location {scored_job.location_score:.1f}, Recency {scored_job.recency_score:.1f}",
         "🔍 Suggested LinkedIn Search:",
-        f"\"{query}\"",
+        f'"{query}"',
         f"Search Link: {recruiter_search_url(job.company, job.title)}",
     ]
     insight = (job.signals_json or {}).get("insight", "")

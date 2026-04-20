@@ -11,7 +11,9 @@ class Settings(BaseSettings):
     database_url: str = Field(alias="DATABASE_URL")
     auto_create_tables: bool = Field(default=False, alias="AUTO_CREATE_TABLES")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
-    bot_poll_interval_seconds: float = Field(default=1.0, ge=0.1, le=10.0, alias="BOT_POLL_INTERVAL_SECONDS")
+    bot_poll_interval_seconds: float = Field(
+        default=1.0, ge=0.1, le=10.0, alias="BOT_POLL_INTERVAL_SECONDS"
+    )
 
     scheduler_enabled: bool = Field(default=True, alias="SCHEDULER_ENABLED")
     scheduler_interval_hours: int = Field(default=6, ge=1, le=24, alias="SCHEDULER_INTERVAL_HOURS")
@@ -23,7 +25,9 @@ class Settings(BaseSettings):
     max_delay_seconds: float = Field(default=3.5, ge=0.1, le=60.0, alias="MAX_DELAY_SECONDS")
 
     playwright_enabled: bool = Field(default=True, alias="PLAYWRIGHT_ENABLED")
-    playwright_timeout_ms: int = Field(default=30000, ge=5000, le=120000, alias="PLAYWRIGHT_TIMEOUT_MS")
+    playwright_timeout_ms: int = Field(
+        default=30000, ge=5000, le=120000, alias="PLAYWRIGHT_TIMEOUT_MS"
+    )
     allowed_user_agent_rotation: bool = Field(default=True, alias="ALLOWED_USER_AGENT_ROTATION")
 
     # AI Intelligence Layer Settings

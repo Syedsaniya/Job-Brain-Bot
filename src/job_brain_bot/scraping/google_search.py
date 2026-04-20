@@ -1,10 +1,10 @@
+import asyncio
 import random
 from urllib.parse import quote_plus
 
-import asyncio
 import httpx
-from bs4 import BeautifulSoup
 import structlog
+from bs4 import BeautifulSoup
 
 from job_brain_bot.config import Settings
 
@@ -33,7 +33,6 @@ def build_search_queries(
     elif time_range == "7d":
         time_modifier = "posted in last 7 days this week"
 
-    base = f"{role} {experience} jobs in {location} {skills_text}".strip()
     base_with_time = f"{role} {experience} jobs {time_modifier} {location} {skills_text}".strip()
 
     return [
@@ -63,11 +62,21 @@ async def _fetch_google_html(query: str, settings: Settings, client: httpx.Async
         try:
             response = await client.get(url, headers=headers)
             response.raise_for_status()
-            await asyncio.sleep(random.uniform(settings.min_delay_seconds, settings.max_delay_seconds))
+            await asyncio.sleep(
+                random.uniform(settings.min_delay_seconds, settings.max_delay_seconds)
+            )
             return response.text
         except httpx.HTTPStatusError as exc:
-            if exc.response is not None and exc.response.status_code not in {429, 500, 502, 503, 504}:
-                logger.warning("google_search_non_retryable_status", status=exc.response.status_code)
+            if exc.response is not None and exc.response.status_code not in {
+                429,
+                500,
+                502,
+                503,
+                504,
+            }:
+                logger.warning(
+                    "google_search_non_retryable_status", status=exc.response.status_code
+                )
                 return ""
             if attempt == 3:
                 logger.warning("google_search_retries_exhausted", error=str(exc))

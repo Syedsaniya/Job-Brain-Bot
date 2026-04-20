@@ -1,15 +1,15 @@
 """Tests for the time parsing utilities."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from job_brain_bot.scraping.time_parser import (
+    TIME_RANGES,
     calculate_recency_score,
     format_time_ago,
     is_within_time_range,
     normalize_time_range,
     parse_absolute_date,
     parse_relative_time,
-    TIME_RANGES,
 )
 
 
@@ -18,7 +18,7 @@ def test_parse_relative_time_hours():
     result = parse_relative_time("posted 5 hours ago")
     assert result is not None
     # Should be approximately 5 hours ago
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     diff = now - result
     assert timedelta(hours=4) < diff < timedelta(hours=6)
 
@@ -27,7 +27,7 @@ def test_parse_relative_time_days():
     """Test parsing 'X days ago' strings."""
     result = parse_relative_time("posted 3 days ago")
     assert result is not None
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     diff = now - result
     assert timedelta(days=2, hours=20) < diff < timedelta(days=3, hours=4)
 
@@ -36,7 +36,7 @@ def test_parse_relative_time_yesterday():
     """Test parsing 'yesterday' strings."""
     result = parse_relative_time("posted yesterday")
     assert result is not None
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     diff = now - result
     assert timedelta(hours=20) < diff < timedelta(days=2)
 
@@ -45,7 +45,7 @@ def test_parse_relative_time_just_now():
     """Test parsing 'just now' strings."""
     result = parse_relative_time("posted just now")
     assert result is not None
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     diff = now - result
     assert diff < timedelta(minutes=1)
 
@@ -54,7 +54,7 @@ def test_parse_relative_time_minutes():
     """Test parsing 'X minutes ago' strings."""
     result = parse_relative_time("posted 30 minutes ago")
     assert result is not None
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     diff = now - result
     assert timedelta(minutes=28) < diff < timedelta(minutes=32)
 
@@ -63,7 +63,7 @@ def test_parse_relative_time_weeks():
     """Test parsing 'X weeks ago' strings."""
     result = parse_relative_time("posted 2 weeks ago")
     assert result is not None
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     diff = now - result
     assert timedelta(days=13) < diff < timedelta(days=15)
 
@@ -106,7 +106,7 @@ def test_normalize_time_range():
 
 def test_is_within_time_range():
     """Test time range filtering."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Job posted 12 hours ago should be within 24h, 48h, and 7d
     job_12h = now - timedelta(hours=12)
@@ -132,7 +132,7 @@ def test_is_within_time_range():
 
 def test_format_time_ago():
     """Test human-readable time formatting."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Just now
     assert format_time_ago(now) == "Just now"
@@ -161,7 +161,7 @@ def test_format_time_ago():
 
 def test_calculate_recency_score():
     """Test recency score calculation."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # < 24 hours = highest score
     assert calculate_recency_score(now - timedelta(hours=12)) == 1.0

@@ -7,7 +7,6 @@ from typing import Any
 
 import httpx
 from sqlalchemy import text
-from sqlalchemy.orm import Session
 
 from job_brain_bot.config import Settings
 from job_brain_bot.db.session import build_engine
@@ -39,7 +38,9 @@ def check_database_connection(settings: Settings) -> dict[str, Any]:
 
             # Test table existence
             tables_result = conn.execute(
-                text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+                text(
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+                )
             )
             tables = [row[0] for row in tables_result.fetchall()]
 
@@ -49,7 +50,7 @@ def check_database_connection(settings: Settings) -> dict[str, Any]:
                 "tables_found": tables,
                 "connection": "established",
             }
-    except Exception as e:
+    except Exception:
         return {
             "status": "error",
             "error": "database_connection_failed",
@@ -80,7 +81,7 @@ def check_telegram_api(token: str) -> dict[str, Any]:
                 "error": data.get("description", "Unknown error"),
                 "code": response.status_code,
             }
-    except Exception as e:
+    except Exception:
         return {
             "status": "error",
             "error": "telegram_api_check_failed",
@@ -102,7 +103,7 @@ def check_scraping_connectivity() -> dict[str, Any]:
                 "status": "ok" if response.status_code < 400 else "error",
                 "status_code": response.status_code,
             }
-        except Exception as e:
+        except Exception:
             results[url] = {
                 "status": "error",
                 "error": "endpoint_check_failed",
@@ -134,8 +135,6 @@ def perform_health_check(settings: Settings) -> HealthStatus:
     # AI modules check
     try:
         from job_brain_bot.ai_intelligence.analyzer import analyze_job_description
-        from job_brain_bot.ai_intelligence.networking import generate_cold_message
-        from job_brain_bot.ai_intelligence.skill_gap import analyze_skill_gaps
 
         # Quick test of AI modules
         test_analysis = analyze_job_description("Test Job", "Python, SQL required")
@@ -144,17 +143,14 @@ def perform_health_check(settings: Settings) -> HealthStatus:
             "analyzer": test_analysis is not None,
             "components": ["analyzer", "skill_gap", "networking"],
         }
-    except Exception as e:
+    except Exception:
         checks["ai_modules"] = {
             "status": "error",
             "error": "ai_module_health_failed",
         }
 
     # Determine overall status
-    failed_checks = [
-        name for name, result in checks.items()
-        if result.get("status") == "error"
-    ]
+    failed_checks = [name for name, result in checks.items() if result.get("status") == "error"]
 
     if "database" in failed_checks:
         overall_status = "unhealthy"
@@ -187,7 +183,13 @@ def format_health_status(status: HealthStatus) -> str:
     ]
 
     for name, check in status.checks.items():
-        status_emoji = "✅" if check.get("status") == "ok" else "⚠️" if check.get("status") in ["skipped", "degraded"] else "❌"
+        status_emoji = (
+            "✅"
+            if check.get("status") == "ok"
+            else "⚠️"
+            if check.get("status") in ["skipped", "degraded"]
+            else "❌"
+        )
         lines.append(f"  {status_emoji} {name}: {check.get('status', 'unknown')}")
 
     return "\n".join(lines)

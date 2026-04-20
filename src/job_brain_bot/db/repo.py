@@ -18,7 +18,11 @@ def _safe_link(job: JobRecord) -> str:
     link = (job.link or "").strip()
     if link:
         parts = urlsplit(link)
-        params = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if not k.lower().startswith("utm_")]
+        params = [
+            (k, v)
+            for k, v in parse_qsl(parts.query, keep_blank_values=True)
+            if not k.lower().startswith("utm_")
+        ]
         return urlunsplit(
             (
                 parts.scheme.lower(),

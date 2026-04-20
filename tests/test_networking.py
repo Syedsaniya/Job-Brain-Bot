@@ -1,7 +1,5 @@
 """Tests for networking message generator module."""
 
-import pytest
-
 from job_brain_bot.ai_intelligence.networking import (
     NetworkingMessage,
     generate_cold_message,

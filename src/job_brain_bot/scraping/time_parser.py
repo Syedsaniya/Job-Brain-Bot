@@ -1,7 +1,7 @@
 """Time parsing utilities for extracting and normalizing job posting timestamps."""
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from html import unescape
 
 # Patterns for parsing relative time strings
@@ -30,9 +30,15 @@ DATE_PATTERNS = [
     # ISO format: 2024-01-15 or 2024-01-15T10:30:00
     re.compile(r"(\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?)"),
     # Common formats: Jan 15, 2024 or January 15, 2024
-    re.compile(r"((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2},?\s*\d{4})", re.IGNORECASE),
+    re.compile(
+        r"((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2},?\s*\d{4})",
+        re.IGNORECASE,
+    ),
     # 15 Jan 2024
-    re.compile(r"(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4})", re.IGNORECASE),
+    re.compile(
+        r"(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s*\d{4})",
+        re.IGNORECASE,
+    ),
     # 15/01/2024 or 01/15/2024
     re.compile(r"(\d{1,2}[/-]\d{1,2}[/-]\d{4})"),
 ]
@@ -54,7 +60,7 @@ def parse_relative_time(text: str) -> datetime | None:
         if not match:
             continue
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if unit == "just_now":
             return now
@@ -96,7 +102,7 @@ def parse_absolute_date(text: str) -> datetime | None:
                 return datetime.fromisoformat(date_str)
             else:
                 dt = datetime.fromisoformat(date_str)
-                return dt.replace(tzinfo=timezone.utc)
+                return dt.replace(tzinfo=UTC)
         except ValueError:
             pass
 
@@ -117,7 +123,7 @@ def parse_absolute_date(text: str) -> datetime | None:
             for fmt in formats:
                 try:
                     dt = datetime.strptime(date_str, fmt)
-                    return dt.replace(tzinfo=timezone.utc)
+                    return dt.replace(tzinfo=UTC)
                 except ValueError:
                     continue
 
@@ -126,8 +132,9 @@ def parse_absolute_date(text: str) -> datetime | None:
 
 def extract_posted_date_from_html(soup) -> datetime | None:
     """Extract posting date from BeautifulSoup HTML content."""
-    from bs4 import BeautifulSoup
     import json
+
+    from bs4 import BeautifulSoup
 
     if not isinstance(soup, BeautifulSoup):
         return None
@@ -230,7 +237,7 @@ def is_within_time_range(posted_date: datetime | None, time_range: str) -> bool:
     if time_range not in TIME_RANGES:
         time_range = "7d"  # Default to 7 days
 
-    cutoff = datetime.now(timezone.utc) - TIME_RANGES[time_range]
+    cutoff = datetime.now(UTC) - TIME_RANGES[time_range]
     return posted_date >= cutoff
 
 
@@ -239,7 +246,7 @@ def format_time_ago(posted_date: datetime | None) -> str:
     if not posted_date:
         return "Unknown"
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     diff = now - posted_date
 
     if diff < timedelta(minutes=1):
@@ -266,7 +273,7 @@ def calculate_recency_score(posted_date: datetime | None) -> float:
     if not posted_date:
         return 0.3  # Lower score for unknown dates, but not 0
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     age_hours = max((now - posted_date).total_seconds() / 3600, 0.0)
 
     if age_hours <= 24:

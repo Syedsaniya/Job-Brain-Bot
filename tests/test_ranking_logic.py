@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from job_brain_bot.db.models import Job, User
 from job_brain_bot.matching.scoring import rank_jobs_for_user
@@ -18,7 +18,7 @@ def test_ranking_prefers_higher_relevance() -> None:
         ),
         alerts_enabled=True,
     )
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     strong = Job(
         title="Cybersecurity Analyst",
         company="Acme",
@@ -59,7 +59,7 @@ def test_recency_affects_ranking() -> None:
         resume_text="",
         alerts_enabled=False,
     )
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Jobs with same base attributes but different posting times
     # Use slightly imperfect matches so recency makes the difference
